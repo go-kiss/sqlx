@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	_ "modernc.org/sqlite"
 )
 
@@ -31,7 +30,7 @@ func (u *user) KeyName() string   { return "id" }
 func TestCRUD(t *testing.T) {
 	ctx := context.Background()
 
-	db := DB{sqlx.MustOpen("sqlite", ":memory:")}
+	db := MustConnect("sqlite", ":memory:")
 	db.MustExecContext(ctx, schema)
 
 	now := time.Now()

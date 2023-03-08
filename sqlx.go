@@ -39,6 +39,18 @@ type mapExecer interface {
 	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
 }
 
+// MustConnect connects to a database and panics on error.
+func MustConnect(driverName, dataSourceName string) *DB {
+	sqlxdb := sqlx.MustConnect(driverName, dataSourceName)
+	return &DB{sqlxdb}
+}
+
+// Connect to a database and verify with a ping.
+func Connect(driverName, dataSourceName string) (*DB, error) {
+	sqlxdb, err := sqlx.Connect(driverName, dataSourceName)
+	return &DB{sqlxdb}, err
+}
+
 // MustBegin return our extended *Tx
 func (db *DB) MustBegin() *Tx {
 	tx := db.DB.MustBegin()
@@ -119,24 +131,18 @@ func insert(ctx context.Context, db mapExecer, m Modeler) (sql.Result, error) {
 		return nil, err
 	}
 
-	marks := ""
-	k := -1
 	for i := 0; i < len(names); i++ {
-		if names[i] == m.KeyName() {
-			v := reflect.ValueOf(args[i])
-			if v.IsZero() {
-				k = i
-				args = append(args[:i], args[i+1:]...)
-				continue
-			}
+		if names[i] != m.KeyName() {
+			continue
+
 		}
-		marks += "?,"
+		if reflect.ValueOf(args[i]).IsZero() {
+			args = append(args[:i], args[i+1:]...)
+			names = append(names[:i], names[i+1:]...)
+		}
+		break
 	}
-	if k >= 0 {
-		names = append(names[:k], names[k+1:]...)
-	}
-	marks = marks[:len(marks)-1]
-	query := "INSERT INTO " + m.TableName() + "(" + strings.Join(names, ",") + ") VALUES (" + marks + ")"
+	query := "INSERT INTO " + m.TableName() + "(" + strings.Join(names, ",") + ") VALUES (" + strings.Repeat(",?", len(names))[1:] + ")"
 	query = db.Rebind(query)
 	return db.ExecContext(ctx, query, args...)
 }
@@ -148,19 +154,17 @@ func update(ctx context.Context, db mapExecer, m Modeler) (sql.Result, error) {
 	}
 
 	query := "UPDATE " + m.TableName() + " set "
-	var id interface{}
 	for i := 0; i < len(names); i++ {
 		name := names[i]
 		if name == m.KeyName() {
-			id = args[i]
-			args = append(args[:i], args[i+1:]...)
+			id := args[i]
+			args = append(append(args[:i], args[i+1:]...), id)
 			continue
 		}
 		query += name + "=?,"
 	}
 	query = query[:len(query)-1] + " WHERE " + m.KeyName() + " = ?"
 	query = db.Rebind(query)
-	args = append(args, id)
 	return db.ExecContext(ctx, query, args...)
 }
 
