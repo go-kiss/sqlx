@@ -42,12 +42,14 @@ type mapExecer interface {
 // MustConnect connects to a database and panics on error.
 func MustConnect(driverName, dataSourceName string) *DB {
 	sqlxdb := sqlx.MustConnect(driverName, dataSourceName)
+	sqlxdb = sqlxdb.Unsafe()
 	return &DB{sqlxdb}
 }
 
 // Connect to a database and verify with a ping.
 func Connect(driverName, dataSourceName string) (*DB, error) {
 	sqlxdb, err := sqlx.Connect(driverName, dataSourceName)
+	sqlxdb = sqlxdb.Unsafe()
 	return &DB{sqlxdb}, err
 }
 
