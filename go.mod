@@ -3,7 +3,7 @@ module github.com/go-kiss/sqlx
 go 1.17
 
 require (
-	github.com/jmoiron/sqlx v1.3.4
+	github.com/jmoiron/sqlx v1.4.0
 	modernc.org/sqlite v1.14.4
 )
 
